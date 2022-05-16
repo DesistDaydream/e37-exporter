@@ -1,0 +1,37 @@
+name: e37-exporter
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: 登录镜像仓库网站
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      # - name: 为 Docker 提前元数据(tags，labels)
+      #   id: meta
+      #   uses: docker/metadata-action@v1
+      #   with:
+      #     images: ghcr.io/desistdaydream/e37-exporter
+      # 导出 tags 版本信息
+      - name: 提取版本信息
+        id: extract_version
+        run: |
+          echo "##[set-output name=version;]$(cat VERSION)"
+      - name: 构建并推送容器镜像
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          # tags: docker.io/lchdzh/e37-exporter:${{steps.extract_version.outputs.version}}
+          tags: ghcr.io/desistdaydream/e37-exporter:${{steps.extract_version.outputs.version}}
