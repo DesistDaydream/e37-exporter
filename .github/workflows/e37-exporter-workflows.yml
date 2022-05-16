@@ -16,7 +16,7 @@ jobs:
       - name: 获取镜像的 Tag 信息
         id: get-version
         run: |
-          echo "##[set-output name=version;]$(cat VERSION)"
+          echo "::set-output name=version::$(cat VERSION)"
     outputs:
       tag: ${{ steps.get-version.outputs.version }}
   push-ghcr:
