@@ -10,8 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TZ: Asia/Shanghai
-    output:
-      tags: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -19,7 +17,10 @@ jobs:
         id: get-version
         run: |
           echo "##[set-output name=version;]$(cat VERSION)"
+    outputs:
+      tag: ${{ steps.get-version.outputs.version }}
   push-ghcr:
+    needs: [generate-tags]
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -37,8 +38,9 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ghcr.io/desistdaydream/e37-exporter:${{needs.generate-tags.outputs.version}}
+          tags: ghcr.io/desistdaydream/e37-exporter:${{needs.generate-tags.outputs.tag}}
   push-docker:
+    needs: [generate-tags]
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -55,4 +57,4 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: docker.io/lchdzh/e37-exporter:${{needs.generate-tags.outputs.version}}
+          tags: docker.io/lchdzh/e37-exporter:${{needs.generate-tags.outputs.tag}}
