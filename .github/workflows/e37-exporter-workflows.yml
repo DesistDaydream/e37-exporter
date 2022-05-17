@@ -19,9 +19,13 @@ jobs:
           echo "::set-output name=version::$(cat VERSION)"
     outputs:
       tag: ${{ steps.get-version.outputs.version }}
+  # 推送镜像到 ghcr.io
   push-ghcr:
     needs: [generate-tags]
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -30,8 +34,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          # GitHub 已不支持使用密码登录，这里应该使用从 https://github.com/settings/tokens 这里创建的 Token
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: 构建并推送容器镜像
         uses: docker/build-push-action@v2
         with:
@@ -39,6 +42,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: ghcr.io/desistdaydream/e37-exporter:${{needs.generate-tags.outputs.tag}}
+  # 推送镜像到 docker.io
   push-docker:
     needs: [generate-tags]
     runs-on: ubuntu-latest
