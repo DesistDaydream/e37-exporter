@@ -2,7 +2,7 @@ name: e37-exporter
 on:
   push:
     branches:
-      - main
+      - release-1.1
   workflow_dispatch: {}
 jobs:
   # 生成镜像 Tag
