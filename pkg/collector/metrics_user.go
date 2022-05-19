@@ -88,10 +88,10 @@ func (ScrapeUsers) Scrape(client scraper.CommonClient, ch chan<- prometheus.Metr
 	defer wg.Wait()
 
 	// 用来控制并发数量
-	concurrenceControl := make(chan bool, 10)
+	concurrenceyControl := make(chan bool, client.GetConcurrency())
 
 	for _, userName := range usersListData.Keys {
-		concurrenceControl <- true
+		concurrenceyControl <- true
 		wg.Add(1)
 		userUrl := "/api/rgw/user/" + userName
 		userMethod := "GET"
@@ -101,13 +101,13 @@ func (ScrapeUsers) Scrape(client scraper.CommonClient, ch chan<- prometheus.Metr
 			respBodyUser, err := client.Request(userMethod, userUrl, nil)
 			if err != nil {
 				logrus.Errorf("获取 %v 用户数据失败，原因:%v", userUrl, err)
-				<-concurrenceControl
+				<-concurrenceyControl
 				return
 			}
 			err = json.Unmarshal(respBodyUser, &userData)
 			if err != nil {
 				logrus.Errorf("解析 %v 用户数据失败，原因:%v", userUrl, err)
-				<-concurrenceControl
+				<-concurrenceyControl
 				return
 			}
 			// 用户的总请求
@@ -128,7 +128,7 @@ func (ScrapeUsers) Scrape(client scraper.CommonClient, ch chan<- prometheus.Metr
 					userData.Keys[0].User,
 				)
 			}
-			<-concurrenceControl
+			<-concurrenceyControl
 		}(userUrl)
 
 		// logrus.Debugf("用户计数:%v\n", index)

@@ -129,9 +129,9 @@ func NewE37Client(opts *E37Opts) *E37Client {
 }
 
 // Request 建立与 E37 的连接，并返回 Response Body
-func (g *E37Client) Request(method string, endpoint string, reqBody io.Reader) (body []byte, err error) {
+func (c *E37Client) Request(method string, endpoint string, reqBody io.Reader) (body []byte, err error) {
 	// 根据认证信息及 endpoint 参数，创建与 E37 的连接，并返回 Body 给每个 Metric 采集器
-	url := g.Opts.URL + endpoint
+	url := c.Opts.URL + endpoint
 	logrus.WithFields(logrus.Fields{
 		"url":    url,
 		"method": method,
@@ -143,10 +143,10 @@ func (g *E37Client) Request(method string, endpoint string, reqBody io.Reader) (
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", g.Token))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.Token))
 
 	// 根据新建立的 Request，发起请求，并获取 Response
-	resp, err := g.Client.Do(req)
+	resp, err := c.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -175,9 +175,9 @@ type token struct {
 
 // Ping 在 Scraper 接口的实现方法 scrape() 中调用。
 // 让 Exporter 每次获取数据时，都检验一下目标设备通信是否正常
-func (g *E37Client) Ping() (b bool, err error) {
+func (c *E37Client) Ping() (b bool, err error) {
 	// 判断 TOKEN 是否可用
-	url := g.Opts.URL + "/api/auth/check"
+	url := c.Opts.URL + "/api/auth/check"
 	method := "POST"
 	logrus.WithFields(logrus.Fields{
 		"url":    url,
@@ -185,7 +185,7 @@ func (g *E37Client) Ping() (b bool, err error) {
 	}).Debugf("每次从 E37 并发抓取指标之前，先检查一下目标状态")
 
 	t := token{
-		Token: g.Token,
+		Token: c.Token,
 	}
 	jsonReqBody, err := json.Marshal(t)
 	if err != nil {
@@ -201,7 +201,7 @@ func (g *E37Client) Ping() (b bool, err error) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// 根据新建立的 Request，发起请求，并获取 Response
-	resp, err := g.Client.Do(req)
+	resp, err := c.Client.Do(req)
 	if err != nil {
 		return false, err
 	}
@@ -221,7 +221,7 @@ func (g *E37Client) Ping() (b bool, err error) {
 		logrus.WithFields(logrus.Fields{
 			"code": resp.Status,
 		}).Errorf("Token 检查失败,尝试重新获取 Token")
-		g.Token, err = GetToken(g.Opts)
+		c.Token, err = GetToken(c.Opts)
 		if err != nil {
 			return false, fmt.Errorf("重新获取 Token 失败，响应吗：%v，响应体：%v", resp.Status, resp.Body)
 		}
@@ -231,12 +231,18 @@ func (g *E37Client) Ping() (b bool, err error) {
 	}
 }
 
+// 从 Opts 中获取并发数
+func (c *E37Client) GetConcurrency() int {
+	return c.Opts.Concurrency
+}
+
 // E37Opts 登录 E37 所需属性
 type E37Opts struct {
-	URL        string
-	Username   string
-	password   string
-	Concurrent int
+	URL      string
+	Username string
+	password string
+	// 并发数
+	Concurrency int
 	// 这俩是关于 http.Client 的选项
 	Timeout  time.Duration
 	Insecure bool
@@ -247,7 +253,7 @@ func (o *E37Opts) AddFlag() {
 	pflag.StringVar(&o.URL, "e37-server", "https://172.38.30.2:8443", "HTTP API address of a E37 server or agent. (prefix with https:// to connect over HTTPS)")
 	pflag.StringVar(&o.Username, "e37-user", "admin", "e37 username")
 	pflag.StringVar(&o.password, "e37-pass", "admin", "e37 password")
-	pflag.IntVar(&o.Concurrent, "concurrent", 10, "Number of concurrent requests during collection.")
+	pflag.IntVar(&o.Concurrency, "concurrent", 10, "Number of concurrent requests during collection.")
 	pflag.DurationVar(&o.Timeout, "time-out", time.Millisecond*1600, "Timeout on HTTP requests to the Gads API.")
 	pflag.BoolVar(&o.Insecure, "insecure", true, "Disable TLS host verification.")
 }

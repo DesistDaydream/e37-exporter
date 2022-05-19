@@ -142,10 +142,10 @@ func (ScrapeBuckets) Scrape(client scraper.CommonClient, ch chan<- prometheus.Me
 	defer wg.Wait()
 
 	// 用来控制并发数量
-	concurrenceControl := make(chan bool, 10)
+	concurrenceyControl := make(chan bool, client.GetConcurrency())
 
 	for _, bucketName := range bucketsList {
-		concurrenceControl <- true
+		concurrenceyControl <- true
 		wg.Add(1)
 		bucketUrl := "/api/rgw/bucket/" + bucketName
 		bucketMethod := "GET"
@@ -155,13 +155,13 @@ func (ScrapeBuckets) Scrape(client scraper.CommonClient, ch chan<- prometheus.Me
 			respBodyBucket, err := client.Request(bucketMethod, bucketUrl, nil)
 			if err != nil {
 				logrus.Errorf("获取 %v 桶数据失败，原因:%v", bucketUrl, err)
-				<-concurrenceControl
+				<-concurrenceyControl
 				return
 			}
 			err = json.Unmarshal(respBodyBucket, &bucketData)
 			if err != nil {
 				logrus.Errorf("解析 %v 桶数据失败，原因:%v", bucketUrl, err)
-				<-concurrenceControl
+				<-concurrenceyControl
 				return
 			}
 			// 桶的总对象数
@@ -236,7 +236,7 @@ func (ScrapeBuckets) Scrape(client scraper.CommonClient, ch chan<- prometheus.Me
 				bucketData.Bucket,
 				bucketData.Owner,
 			)
-			<-concurrenceControl
+			<-concurrenceyControl
 		}(bucketUrl)
 
 		// logrus.Debugf("桶计数：%v\n", index)
