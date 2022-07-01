@@ -12,7 +12,8 @@ COPY ./ /root/prometheus-instrumenting
 RUN go build -o e37-exporter ./cmd/e37_exporter/*.go
 
 FROM alpine
-LABEL org.opencontainers.image.source https://github.com/DesistDaydream/prometheus-instrumenting
+# org.opencontainers.image.source 用于为 GitHub Package 提供标识符，以识别该镜像应该属于哪个仓库
+LABEL org.opencontainers.image.source https://github.com/DesistDaydream/e37-exporter
 WORKDIR /root/prometheus-instrumenting
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
     apk update && \
