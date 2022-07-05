@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"runtime"
 
 	"github.com/DesistDaydream/e37-exporter/pkg/collector"
+	"github.com/DesistDaydream/e37-exporter/pkg/logging"
 	"github.com/DesistDaydream/prometheus-instrumenting/pkg/scraper"
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,52 +30,16 @@ func DumpStacks() {
 	logrus.Printf("=== BEGIN goroutine stack dump ===\n%s\n=== END goroutine stack dump ===", buf)
 }
 
-// LogInit 日志功能初始化，若指定了 log-output 命令行标志，则将日志写入到文件中
-func LogInit(level, file, format string) error {
-	switch format {
-	case "text":
-		logrus.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp:   true,
-			TimestampFormat: "2006-01-02 15:04:05",
-		})
-	case "json":
-		logrus.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat:   "2006-01-02 15:04:05",
-			DisableTimestamp:  false,
-			DisableHTMLEscape: false,
-			DataKey:           "",
-			// FieldMap:          map[logrus.fieldKey]string{},
-			// CallerPrettyfier: func(*runtime.Frame) (string, string) {},
-			PrettyPrint: false,
-		})
-	}
-
-	logLevel, err := logrus.ParseLevel(level)
-	if err != nil {
-		return err
-	}
-	logrus.SetLevel(logLevel)
-
-	if file != "" {
-		f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0755)
-		if err != nil {
-			return err
-		}
-		logrus.SetOutput(f)
-	}
-
-	return nil
-}
-
 func main() {
 	// ####################################
 	// ######## 设置命令行标志，开始 ########
 	// ####################################
 	listenAddress := pflag.String("web.listen-address", ":18443", "Address to listen on for web interface and telemetry.")
 	metricsPath := pflag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	logLevel := pflag.String("log-level", "info", "The logging level:[debug, info, warn, error, fatal]")
-	logFile := pflag.String("log-output", "", "the file which log to, default stdout")
-	logFormat := pflag.String("log-format", "text", "日志输出格式，可选值：text, json")
+
+	// 设置日志相关命令行标志
+	logFlags := logging.LoggingFlags{}
+	logFlags.AddFlags()
 
 	// 设置关于抓取 Metric 目标客户端的一些信息的标志
 	opts := &collector.E37Opts{}
@@ -103,8 +67,8 @@ func main() {
 	// ####################################
 
 	// 初始化日志
-	if err := LogInit(*logLevel, *logFile, *logFormat); err != nil {
-		logrus.Fatal("set log level error")
+	if err := logging.LogInit(logFlags.LogLevel, logFlags.LogOutput, logFlags.LogFormat); err != nil {
+		logrus.Fatal("初始化日志失败", err)
 	}
 
 	// 下面的都是 Exporter 运行的最主要逻辑了
